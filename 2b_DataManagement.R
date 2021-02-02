@@ -125,3 +125,14 @@ tomato_means <- tomato_filtered_long %>%
 ?write.csv
 write.csv(tomato_means, "tomato_means.csv")
 
+
+p1 <- ggplot(tomato_filtered_long, aes(x = env, y = value, fill = env))+
+	geom_boxplot()+
+	facet_wrap(~variable, scales = "free", nrow = 1, strip.position = "left",
+						 labeller = as_labeller(variable_names))+
+	ylab(NULL)+
+	theme(legend.position = "top",
+				axis.text.x = element_text(angle = 45),
+				strip.background = element_blank(),
+				text = element_text(size = 16),
+				strip.placement = "outside")
