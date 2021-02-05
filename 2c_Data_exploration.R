@@ -270,16 +270,56 @@ ny_flights<-sample_n(flights, 20000)
 ny_flights
 str(ny_flights)
 
+
 #'Question 1: Two parts. First, which months had the most flights departing each of the three airports?
 #' Second, show a line plot of all three airports and the number of flights departing them across 
 #' every month (Hint: x-axis would be months, y would be the number of flights).
 
+q1 <- ny_flights %>% 
+      group_by(origin, month) %>%
+      summarise(total_flights = n()) 
 
+q1 %>% 
+  ggplot(aes(x = month, y = total_flights, color = origin))+
+  geom_point()+
+  geom_line()+
+  theme_classic()+
+  facet_wrap(~origin)
+
+ggplot(data = q1)+ 
+  geom_line(aes(x = month, y = total_flights)) + 
+  geom_point(aes(x=month, y = total_flights), size = 4) + 
+  labs(x = "Month", y = "Total departure delays (minutes)") +
+  facet_wrap("origin")
+
+# July for EWR and JFJ, October LGA
 
 #' Question2: Which airline/carrier flew the most miles, the most number of flights? 
 #' Also which carrier had the lowest miles to flights ratio?
 #' (Lower miles to fligh ratio would mean an airline flew less miles per flight)
 
+q2 <- ny_flights %>% 
+      group_by(carrier) %>%
+      summarise(total_distance = sum(distance)) %>% 
+      arrange(desc(total_distance))
+
+print(q2[1,]) # UA flew the most miles
+
+q2.b <- ny_flights %>% 
+      group_by(carrier) %>%
+      summarise(total_flights = n()) %>% 
+      arrange(desc(total_flights))
+
+print(q2.b[1,]) # UA flew the most flights
+
+q2.c <- ny_flights %>% 
+      group_by(carrier) %>%
+      summarise(total_distance = sum(distance), 
+                total_flights = n(),
+                ratio = total_distance/total_flights) %>% 
+      arrange(desc(ratio))
+
+print(q2.c[15,]) # YV had the lowest miles to flight ratio
 
 
 #'Question 3:Identify the 5 most popular destinations from all three airports.
@@ -287,9 +327,56 @@ str(ny_flights)
 #'For every month, which destination received the most flights and from which airports? 
 #' How would you plot this? 
 
+q3 <- ny_flights %>%
+      group_by(origin,dest) %>%
+      summarise(total= n())
 
+EWR <- filter(q3, origin == "EWR")
+EWR <- EWR %>% arrange(desc(total))
+EWR <- EWR[1:5,2]
 
+JFK <- filter(q3, origin == "JFK")
+JFK <- JFK %>% arrange(desc(total))
+JFK <- JFK[1:5,2]
 
+LGA <- filter(q3, origin == "LGA")
+LGA <- LGA %>% arrange(desc(total))
+LGA <- LGA[1:5,2]
+
+all <- rbind(EWR, JFK, LGA)
+pop_dest <- unique(all)
+pop_dest <- as.vector(pop_dest$dest)
+
+top10 <- ny_flights %>% 
+          filter(dest %in% pop_dest)
+
+top10_month <- top10 %>% 
+               group_by(month, dest, origin) %>%
+               summarise(total_flights = n())
+
+month_label <- c("1" = "January", "2" = "February", "3" = "March",
+                 "4" = "April", "5" = "May", "6" = "June", "7" = "July",
+                 "8" = "August", "9" = "September", "10" = "October",
+                 "11" = "November", "12" = "December")
+
+top10_month <- rename(top10_month, Origin = origin)
+
+top10_month %>% 
+    ggplot(aes(x = dest, y = total_flights, fill = Origin))+
+    geom_col()+
+    scale_fill_viridis_d(option = 'D')+
+    xlab("Destination")+
+    ylab("Total Flights")+
+    facet_wrap(~month,labeller = as_labeller(month_label))+
+    theme_classic()+
+    theme(strip.background = element_blank(),
+    panel.border = element_blank())+
+    theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+# Jan = Boston / EWR, Feb = Boston / JFK, March = Atlanta / LGA, 
+# April = Boston / EWR, May = Atlanta / LGA, June = Atlanta / LGA, 
+# July = Boston / JFK, August = Atlanta / LGA, September = Atlanta / LGA, 
+# October = Chicago / LGA, November = Chicago, LGA, December = Atlanta / LGA
 
 #Optional: CHALLENGE CHALLENGE
 #' Which carriers fly to which of the top ten destinations at what time of the day?
