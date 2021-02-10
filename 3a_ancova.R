@@ -114,41 +114,37 @@ lmchicks <- lm(weight ~ Diet, data=ChickWeight)
 
 Anova(lmchicks, type = 2) #Type
 
-anova_means <- emmeans(lmchicks, pairwise~Diet)
+lmchicks_means <- emmeans(lmchicks, pairwise~Diet)
+
+# 1 & 4, 1 & 3
 
 ## Q2: Do the chicks on different diets have different growth rates? Which is fastest/slowest? (ie. compare slopes) #### 
+
 lmchicks <- lm(weight ~ Diet + Time + Diet:Time, data=ChickWeight)
 
-
-
-
-## calculate estimated marginal mean for each group (ie. groups means after accounting for the effect of weeds)
-ancova_is_means <- emmeans(lmchicks, pairwise~Diet)  
-ancova_is_means
-
 ## calculate the slope for each group
-ancova_is_slopes <- emtrends(lmchicks, pairwise~Diet, var="Time")  
-ancova_is_slopes
+lmchicks_slopes <- emtrends(lmchicks, pairwise~Diet, var="Time")  
+lmchicks_slopes
 
-## extract the emmean means (ie. group means after accounting for the effect of weeds)
-lm1is_coef <- as.data.frame(emmeans(lm1is, ~spray))
-
-## extract intercepts and add slopes into new dataframe
-lm1is_coef2a <- as.data.frame(emmeans(lm1is, ~spray, at=list(weeds=0)))
-lm1is_coef2b <- as.data.frame(emtrends(lm1is, var="weeds"))
-lm1is_coef2 <- full_join(lm1is_coef2a,lm1is_coef2b,by="spray")
-
-## plot the data with the fitted model
-ggplot(data=d, aes(x=weeds,y=count)) + geom_point() + facet_wrap(~spray) + 
-  geom_abline(data=lm1is_coef2, aes(intercept=emmean, slope=weeds.trend), lty=2)+
-  geom_point(data=lm1is_coef2, aes(x=0,y=emmean),color="orange")+
-  geom_point(data=lm1is_coef, aes(x=mean(d$weeds),y=emmean),color="purple", size=2)
-
-
-
+# Fastest is Diet 3, slowest is Diet 1
 
 ## Q3: Do the weights differ among the diets when including the time covariate? Do they differ at time point 20?
-##     hint: for the second part add the following to the emmeans statement: , at=list(Time=20)
+## hint: for the second part add the following to the emmeans statement: , at=list(Time=20)
 
+lmchicks <- lm(weight ~ Diet + Time + Diet:Time, data=ChickWeight)
+lmchicks_means <- emmeans(lmchicks, pairwise~Diet)
+lmchicks_means_t20 <- emmeans(lmchicks, pairwise~Diet, at = list(Time = 20))
+
+# Yes most weights differ when including time as a covariate (and at t20).
 
 ## Bonus: Plot out the emmeans with 95% CI bars for the four diets
+lmchicks_plot <- as.data.frame(lmchicks_means$emmeans)
+
+ggplot(d = lmchicks_plot, aes(x = Diet, y = emmean))+
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), size = 2, width = 0,
+                color = "darkgray")+
+  geom_point(color = "black", size = 7)+
+  ylab('Mean weight (g)')+
+  xlab('Diet')+
+  theme_classic()+
+  theme(text = element_text(size = 20))
