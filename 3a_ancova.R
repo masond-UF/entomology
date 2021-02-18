@@ -148,3 +148,4 @@ ggplot(d = lmchicks_plot, aes(x = Diet, y = emmean))+
   xlab('Diet')+
   theme_classic()+
   theme(text = element_text(size = 20))
+
