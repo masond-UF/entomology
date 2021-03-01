@@ -2,6 +2,8 @@
 library(tidyverse)
 library(car)
 data("InsectSprays")
+# testing
+
 InsectSprays$block <- as.factor(rep(c(1,2,3,4,5,6,7,8,9,10,11,12), 6)) # add blocks
 
 d <- InsectSprays %>% filter(spray=='A'|spray=='B'|spray=='C'|spray=='F')
