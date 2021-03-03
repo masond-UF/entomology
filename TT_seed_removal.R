@@ -2,8 +2,15 @@ library(tidyverse)
 library(lme4)
 library(lmerTest)
 library(emmeans)
+library(plyr)
 
 d1 <- read.csv("ttseedremoval.csv")
+
+d1$TREATMENT <- revalue(d1$TREATMENT, c("B"="BURN", "C"="CONTROL"))
+d1$SPECIES <- revalue(d1$SPECIES, c("SIAL"="MUSTARD", 
+																		"HEAN"="SUNFLOWER",
+																		"CAAN"="PEPPER"))
+
 
 lower_ci <- function(mean, se, n, conf_level = 0.95){
   lower_ci <- mean - qt(1 - ((1 - conf_level) / 2), n - 1) * se
@@ -13,13 +20,15 @@ upper_ci <- function(mean, se, n, conf_level = 0.95){
 }
 
 means <- d1 %>%
- 	group_by(DATE, TREATMENT, SPECIES) %>%
-  summarise(smean = mean(REMOVAL, na.rm = TRUE),
+ 	dplyr::group_by(DATE, TREATMENT, SPECIES) %>%
+  dplyr::summarise(smean = mean(REMOVAL, na.rm = TRUE),
             ssd = sd(REMOVAL, na.rm = TRUE),
   					count = n()) %>%
-  mutate(se = ssd / sqrt(count),
+  dplyr::mutate(se = ssd / sqrt(count),
          lower_ci = lower_ci(smean, se, count),
          upper_ci = upper_ci(smean, se, count))
+
+
 
 colors <- c("red", "black")
 ggplot(means, aes(x = DATE, y = smean))+
