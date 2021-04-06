@@ -53,23 +53,23 @@ plot(sim_mod) # looks good
 
 ## print out back-transformed means
 emmeans(mod, pairwise ~ Matrix:Size_cm, type="response") 
-emmeans(mod, pairwise ~ Matrix, type="response") 
+emtrends(mod, pairwise~Matrix, var = 'Size_cm') 
 
+exp(0.148) # both 
+exp(0.0132) # se
+
+exp(0.110) # single 
+exp(0.0125) # se
+
+## overall model power
+									 
 r.squaredGLMM(mod) 
 print(VarCorr(mod), comp=c("Variance")) 
 
-cc <- confint(mod,parm="beta_")  ## slow (~ 11 seconds)
-ctab <- cbind(est=fixef(mod),cc)
-
+# random effect stuff
 coef(mod) # intercepts vary for random effect (Person)
-plogis(cc["(Intercept)"])  ## predicted probability for an individual with baseline characteristics
-
-exp(fixef(mod))
-# matrix 2 odds of 0 colonization is 0.07x more than what
-# for each increase in cm, odds of matrix 2 colonization increases by 1.16x
-# matrix 1 odds of 0 colonization is (1.56 - 0.07)x more than?
-# for each increase in cm, odds of matrix 1 colonization is 
-# are we adding and subtract? they seem right as it is.
+exp(-4.240983) # 0.01439344
+exp(-1.034468) # 0.3554154
 
 # Create figures ####
 d$probability <- d$Colonization/d$Emigration
@@ -84,6 +84,5 @@ matrix_fig <- ggpredict(mod, terms = c("Matrix [all]")) %>% plot()
 ggarrange(size_fig, matrix_fig)
 
 ggpredict(mod, c("Size_cm [all]", "Matrix [all]")) %>% plot()
-
 
 
