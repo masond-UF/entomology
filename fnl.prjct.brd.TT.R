@@ -220,36 +220,35 @@ SD <- matrix(c("Site","obs","total",0.0000012401,0.8552376549, sum(0.0000012401+
 colnames(SD) <- c("Groups", "SD")
 SD <- as.data.frame(SD)
 
-means <- as.data.frame(emmeans(nst.ZI.OD.mod, ~Treatment*Functional))
-
+means <- as.data.frame(emmeans(nst.ZI.OD.mod, ~Treatment*Functional, type = 'response', bias.adj = T,
+				sigma = 0.8552389))
 ###################### MAKE TOTAL FIGURE ######################################
 library("ggpubr")
 levels(means$Treatment)[levels(means$Treatment)=="B"] <- "Recent burn"
 levels(means$Treatment)[levels(means$Treatment)=="C"] <- "One-year rough"
 
 
-ggplot(means, aes(x = Functional, y = emmean))+
+ggplot(means, aes(x = Functional, y = rate))+
 	geom_linerange(aes(ymin=lower.CL,ymax=upper.CL, col=Functional), 
 								 size=1.5)+
 	geom_point(aes(col = Functional),size = 8)+
 	theme_classic()+
 	theme(text = element_text(size = 22),
 				legend.title = element_blank(),
-				legend.position = "bottom",
+				legend.position = "none",
 				plot.title = element_text(hjust = 0.5),
 				strip.background = element_blank(),
    			strip.text.y = element_blank(),
 				axis.title.x = element_text(face='bold', vjust=-2.5),
-				axis.text.x = element_blank(),
 				axis.title.y = element_text(face='bold', vjust=3),
 				strip.text.x = element_text(size = 24,face ='bold'),
-				legend.spacing.x = unit(1.25, 'cm'),
+				legend.spacing.x = unit(0.5, 'cm'),
 				plot.margin = unit(c(1,1.2,0.9,1.2),"cm"),
 				legend.box.spacing = unit(1.2,'cm'),
 				axis.ticks.x = element_blank(),
 				axis.ticks.y = element_line(size=1.2))+
 	scale_color_manual(values = c("#00AFBB", "#E7B800"))+
-	scale_y_continuous(breaks=c(0,1,2))+
+	scale_y_continuous(breaks=c(0,2,4,6,8,10), limits = c(0,11))+
 	ylab("Mean total observations")+
 	xlab("Feeding guild")+
 	facet_wrap(~Treatment)
