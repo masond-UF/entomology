@@ -54,7 +54,7 @@ levels(brd.filt$Species)[levels(brd.filt$Species) == "Eastern Kingbird"] <- "Eas
 
 ## Functional groups
 
-I need to convert the species level data here in two broad functional groups: frugivores and others (insectivores, granivores, scavengers, and predators).
+I need to convert the species level data here into two broad functional groups: frugivores and others (insectivores, granivores, scavengers, and predators).
 
 
 ```{r functional groups}
@@ -77,7 +77,8 @@ brd.filt.func <- brd.filt %>%
 unique(brd.filt.func$Functional)
 
 # We have one trap that was started earlier than others &
-# there may be a true zero at control. Either way it looks messy.
+# there may be a true zero at control that is not 
+# represented. Lets drop it.
 
 brd.filt.func <- brd.filt.func %>% 
 	filter(!Week=='2020-04-12')
@@ -95,15 +96,15 @@ brd.filt.func %>% group_by(Treatment,Site) %>% summarize(Count = n()) %>%
 
 # Looking by site (looks like an important RV)
 brd.filt.func %>% group_by(Site, Treatment) %>% summarize(Count = n()) %>% 
-	ggplot(aes(x = Treatment, y = Count)) + geom_col() + facet_wrap(~Site)
+	ggplot(aes(x = Site, y = Count)) + geom_col() + facet_wrap(~Site)
 
-# Looking by functional group (looks like a possible covariate)
+# Looking by functional group 
 brd.filt.func %>% group_by(Treatment, Functional) %>% 
 	summarize(Count = n()) %>% 
 	ggplot(aes(x = Treatment, y = Count, color = Functional)) + 
 	geom_col(position = "Dodge") 
 
-# Lets explore the magnet effect with Date/Week (WOAH!)
+# Lets explore the magnet effect with Date/Week
 brd.filt.func %>% 
 	group_by(Treatment,Week,Functional) %>% 
 	summarize(Count = n()) %>% 
@@ -131,7 +132,7 @@ time.obs <- brd.filt.func %>%
 
 ## Creating the models
 
-I want to create models to compare the total bird observations for each treatment.
+I want to create models to compare the total bird observations for each treatment. From the EDA, it looks as though there may be no difference in overall bird observations among treatment, but there may be an interaction between frugivory and treatment. Also, it seems that sites have differing number of observations as well as different patterns related to treatment. Either way, nesting within pairs was explicitly included in the design, so we will model the relationship with mixed effects.
 
 ```{r models, warning=FALSE,message=FALSE}
 library(lme4)
@@ -188,8 +189,8 @@ summary(nst.nb.mod)
 sim.nst.nb.mod <- simulateResiduals(fittedModel = nst.nb.mod, n = 250)
 plot(sim.nst.nb.mod)
 
-########### Poisson with Zero Inflation (note no overdispersion). Is it enough to account for zero inflation without correcting for overdispersion? 
-library(glmmTMB) ## new package. similar to lme4 but more flexibility and options
+########### Poisson with Zero Inflation 
+library(glmmTMB) 
 
 nst.ZI.mod <- glmmTMB(Count~Treatment*Functional+(1|Site), 
                       family=poisson, 
@@ -198,7 +199,7 @@ nst.ZI.mod <- glmmTMB(Count~Treatment*Functional+(1|Site),
 
 ############ Diagnose the OD GLMM
 sim.nst.ZI.mod <- simulateResiduals(fittedModel = nst.ZI.mod, n = 250)
-plot(sim.nst.ZI.mod) # still doesn't look good
+plot(sim.nst.ZI.mod) # deviation and within group violations
 
 ############# Poisson corrected for zero-inflation AND overdispersion
 nst.ZI.OD.mod <- glmmTMB(Count~Treatment*Functional+(1|Site)+(1|obs), 
@@ -219,39 +220,30 @@ nst.ZI.nb.mod <- glmmTMB(Count~Treatment*Functional+(1|Site),
 
 ############### Diagnose the model
 sim.nst.ZI.nb.mod <- simulateResiduals(fittedModel = nst.ZI.nb.mod, n = 250)
-plot(sim.nst.ZI.nb.mod) # Looks decent
+plot(sim.nst.ZI.nb.mod) # within group variation
 
 ```
 
 ## Comparing models
 
 ```{r comparing models, warning=FALSE,message=FALSE}
-summary(smpl.mod) ## simple poisson model
 Anova(smpl.mod)  
-
-summary(nst.mod) ## nested glmm
 Anova(nst.mod)  
-
-summary(nst.OD.mod)  ## overdispered (OD) nested glmm
 Anova(nst.OD.mod)  
-
-summary(nst.nb.mod)  ## nested negative binomial
 Anova(nst.nb.mod)
-
-summary(nst.ZI.mod)  ##  zero-inflated (ZI) poisson
 Anova(nst.ZI.mod)
-
-summary(nst.ZI.OD.mod)  ## Poisson corrected for ZI AND OD
 Anova(nst.ZI.OD.mod)
-
-summary(nst.ZI.nb.mod)  ##  ZI negative binomial
 Anova(nst.ZI.nb.mod)
 
 ## which model is best?
 AIC(smpl.mod,nst.mod,nst.OD.mod,nst.nb.mod,nst.ZI.mod,
 		nst.ZI.OD.mod,nst.ZI.nb.mod)
+```
 
-### Poisson corrected for ZI AND OD is the best model
+Poisson corrected for ZI AND OD is the best model based on
+assumptions, significance, and AIC value. Lets look at that model closer and estimate means and confidence intevals.
+
+```{r best model}
 library(glmmTMB)
 library(insight)
 library(performance)
@@ -261,13 +253,10 @@ r2(nst.ZI.OD.mod)
 
 #### Examine SD associated with random effects 
 options (scipen = 999)
-VarCorr(nst.ZI.OD.mod) %>% as.data.frame()
-SD <- matrix(c("Site","obs","total",0.0000012401,0.8552376549, sum(0.0000012401+0.8552376549)),nrow=3,ncol=2)
+VarCorr(nst.ZI.OD.mod) 
+SD <- matrix(c("Site","obs","total",0.0000012401,0.855237654, sum(0.0000012401+0.8552376549)),nrow=3,ncol=2)
 colnames(SD) <- c("Groups", "SD")
 SD <- as.data.frame(SD)
-
-totSD2 <- VarCorr(fec_odp) %>% as.data.frame() %>% summarize(totSD=sum(vcov)) %>% mutate(totSD=sqrt(totSD))
-
 
 ##### Estimate means with confidence intervals
 emmeans(nst.ZI.OD.mod, ~Treatment, type = 'response', bias.adj = T,
@@ -281,6 +270,9 @@ means <- as.data.frame(emmeans(nst.ZI.OD.mod, ~Treatment*Functional, type = 'res
 ```
 
 ## Making a figure representing the means
+
+It looks better exported, trust me.
+
 ```{r mean figure, echo=FALSE,warning=FALSE,message=FALSE}
 library("ggpubr")
 levels(means$Treatment)[levels(means$Treatment)=="B"] <- "Recent burn"
@@ -312,6 +304,8 @@ p1 <- ggplot(means, aes(x = Functional, y = rate))+
 	ylab("Mean total observations")+
 	xlab("Feeding guild")+
 	facet_wrap(~Treatment)
+
+p1
 ```
 
 ## Time series figure

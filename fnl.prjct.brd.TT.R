@@ -221,12 +221,10 @@ AIC(smpl.mod,nst.mod,nst.OD.mod,nst.nb.mod,nst.ZI.mod,
 
 ### examine SD associated with random effects 
 options (scipen = 999)
-VarCorr(nst.ZI.OD.mod) %>% as.data.frame()
+VarCorr(nst.ZI.OD.mod) 
 SD <- matrix(c("Site","obs","total",0.0000012401,0.8552376549, sum(0.0000012401+0.8552376549)),nrow=3,ncol=2)
 colnames(SD) <- c("Groups", "SD")
 SD <- as.data.frame(SD)
-
-totSD2 <- VarCorr(fec_odp) %>% as.data.frame() %>% summarize(totSD=sum(vcov)) %>% mutate(totSD=sqrt(totSD))
 
 emmeans(nst.ZI.OD.mod, ~Treatment, type = 'response', bias.adj = T,
 				sigma = sqrt(0.8552389))
