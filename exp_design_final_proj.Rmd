@@ -1,11 +1,27 @@
-###### 16 APRIL 2021 ###### DAVID S. MASON ###### EXP DESIGN PROJECT
-###################### SET—UP WORKSPACE ###############################
+---
+title: "Experimental Design Final Project"
+author: "David S, Mason"
+date: "4/17/2021"
+output: html_document
+---
+This is a script for analyzing bird observations from 42 camera traps monitoring artificial perches above seed traps at 7 paired parcels on Tall Timbers Research Station. These pairs include a parcel burned in Spring of 2020 and another burned the year prior (one-year rough). Each parcel has three traps and the raw data included here runs through April and May.
+
+The overarching hypothesis of my dissertation is that animal resource tracking associated with resources and disturbance
+results in plants being disproportionately dispersed toward favorable habitats. In the context of prescribed burns, I predict that the magnet effect of fire will result in increased frugivore observations, which will result in increased seed rain and plant establishment. In this script, I am modeling the first part of that process as my final project for Dr. Phil Hahn's Experimental Design course at University of Florida.
+
+## Set-up the workspace
+```{r set-up, warning=FALSE,message=FALSE}
 library(tidyverse)
 library(lubridate)
 
 brd <- read.csv("PRELIM CAM.csv")
-###################### MUNGE DATA ##################################
+head(brd)
+summary(brd)
+```
 
+## Data Munging
+
+```{r munging}
 # Convert the date into a format the tidyverse trucks with
 brd$Date <- mdy(brd$Date)
 
@@ -34,9 +50,14 @@ levels(brd.filt$Species)[levels(brd.filt$Species) == "Towhee"] <- "Eastern towhe
 
 # Need to make Eastern Kingbird into Eastern kingbird for consistency
 levels(brd.filt$Species)[levels(brd.filt$Species) == "Eastern Kingbird"] <- "Eastern kingbird"
+```
 
-###################### CREATE & ASSIGN FUNCTIONAL GROUPS ####################### 
+## Functional groups
 
+I need to convert the species level data here in two broad functional groups: frugivores and others (insectivores, granivores, scavengers, and predators).
+
+
+```{r functional groups}
 # Make vectors for each functional group
 Frugivores <- c("American crow", "Blue jay", "Eastern towhee",
 							 "Northern cardinal", "Pileated woodpecker",
@@ -60,8 +81,12 @@ unique(brd.filt.func$Functional)
 
 brd.filt.func <- brd.filt.func %>% 
 	filter(!Week=='2020-04-12')
+```
 
-###################### EXPLORATORY DATA ANALYSIS ###############################  
+## Exploratory data analysis
+
+```{r EDA}
+# Check out the new data set
 summary(brd.filt.func)
 
 # Looking at bird observations by treatment
@@ -86,9 +111,13 @@ brd.filt.func %>%
 	geom_point()+
 	geom_line()+
 	facet_wrap(~Treatment)
+```
 
-###################### SUMMARIZE THE DATA ######################################
+## Summarizing the data
 
+Now that I have a cleaned up version of the data set with the functional role of each observation identified, I need to add up the number of observations for each unique site/trap/date/functional combination.
+
+```{r summarize the data}
 # Data to compare all bird observations by treatment
 tot.obs <- brd.filt.func %>% 
 	group_by(Treatment,Site,Trap,Functional) %>% 
@@ -98,8 +127,13 @@ tot.obs <- brd.filt.func %>%
 time.obs <- brd.filt.func %>% 
 	group_by(Treatment,Site, Functional, Week) %>% 
 	summarize(Count = n())
+```
 
-###################### CREATE THE TOTAL MODELS #################################
+## Creating the models
+
+I want to create models to compare the total bird observations for each treatment.
+
+```{r models, warning=FALSE,message=FALSE}
 library(lme4)
 library(lmerTest)
 library(emmeans)
@@ -187,24 +221,37 @@ nst.ZI.nb.mod <- glmmTMB(Count~Treatment*Functional+(1|Site),
 sim.nst.ZI.nb.mod <- simulateResiduals(fittedModel = nst.ZI.nb.mod, n = 250)
 plot(sim.nst.ZI.nb.mod) # Looks decent
 
-###################### COMPARE THE TOTAL MODELS ################################
-summary(smpl.mod) ## summary for simple poisson model
+```
+
+## Comparing models
+
+```{r comparing models, warning=FALSE,message=FALSE}
+summary(smpl.mod) ## simple poisson model
 Anova(smpl.mod)  
 
-summary(nst.mod) ## summary for nested glmm
+summary(nst.mod) ## nested glmm
 Anova(nst.mod)  
 
-summary(nst.OD.mod)  ## summary for overdispered nested glmm
+summary(nst.OD.mod)  ## overdispered (OD) nested glmm
 Anova(nst.OD.mod)  
 
-summary(nst.nb.mod)  ## summary for nested negative binomial
+summary(nst.nb.mod)  ## nested negative binomial
 Anova(nst.nb.mod)
 
-summary(nst.ZI.mod)  ## summary for zero-inflated poisson
+summary(nst.ZI.mod)  ##  zero-inflated (ZI) poisson
 Anova(nst.ZI.mod)
 
-summary(nst.ZI.OD.mod)  ## summary Poisson corrected for ZI AND OD
+summary(nst.ZI.OD.mod)  ## Poisson corrected for ZI AND OD
 Anova(nst.ZI.OD.mod)
+
+summary(nst.ZI.nb.mod)  ##  ZI negative binomial
+Anova(nst.ZI.nb.mod)
+
+## which model is best?
+AIC(smpl.mod,nst.mod,nst.OD.mod,nst.nb.mod,nst.ZI.mod,
+		nst.ZI.OD.mod,nst.ZI.nb.mod)
+
+### Poisson corrected for ZI AND OD is the best model
 library(glmmTMB)
 library(insight)
 library(performance)
@@ -212,14 +259,7 @@ library(performance)
 get_variance(nst.ZI.OD.mod)
 r2(nst.ZI.OD.mod)
 
-summary(nst.ZI.nb.mod)  ## summary forzero-inflated nb
-Anova(nst.ZI.nb.mod)
-
-## which model is best?
-AIC(smpl.mod,nst.mod,nst.OD.mod,nst.nb.mod,nst.ZI.mod,
-		nst.ZI.OD.mod,nst.ZI.nb.mod)
-
-### examine SD associated with random effects 
+#### Examine SD associated with random effects 
 options (scipen = 999)
 VarCorr(nst.ZI.OD.mod) %>% as.data.frame()
 SD <- matrix(c("Site","obs","total",0.0000012401,0.8552376549, sum(0.0000012401+0.8552376549)),nrow=3,ncol=2)
@@ -228,6 +268,8 @@ SD <- as.data.frame(SD)
 
 totSD2 <- VarCorr(fec_odp) %>% as.data.frame() %>% summarize(totSD=sum(vcov)) %>% mutate(totSD=sqrt(totSD))
 
+
+##### Estimate means with confidence intervals
 emmeans(nst.ZI.OD.mod, ~Treatment, type = 'response', bias.adj = T,
 				sigma = sqrt(0.8552389))
 emmeans(nst.ZI.OD.mod, ~Functional, type = 'response', bias.adj = T,
@@ -235,7 +277,11 @@ emmeans(nst.ZI.OD.mod, ~Functional, type = 'response', bias.adj = T,
 
 means <- as.data.frame(emmeans(nst.ZI.OD.mod, ~Treatment*Functional, type = 'response', bias.adj = T,
 				sigma = sqrt(0.8552389)))
-###################### MAKE TOTAL FIGURE #######################################
+
+```
+
+## Making a figure representing the means
+```{r mean figure, echo=FALSE,warning=FALSE,message=FALSE}
 library("ggpubr")
 levels(means$Treatment)[levels(means$Treatment)=="B"] <- "Recent burn"
 levels(means$Treatment)[levels(means$Treatment)=="C"] <- "One-year rough"
@@ -266,8 +312,13 @@ p1 <- ggplot(means, aes(x = Functional, y = rate))+
 	ylab("Mean total observations")+
 	xlab("Feeding guild")+
 	facet_wrap(~Treatment)
-	
-###################### CREATE THE TIME-SERIES FIGURE ########################### 
+```
+
+## Time series figure
+
+The magnet effect only lasts for a couple of weeks, so I'd like to represent the fluctuations in observations as time progresses. I can put this aside the means for a more complete view of the data.
+
+```{r time figure, echo=FALSE}
 levels(brd.filt.func$Treatment)[levels(brd.filt.func$Treatment)=="B"] <- "Recent burn"
 levels(brd.filt.func$Treatment)[levels(brd.filt.func$Treatment)=="C"] <- "One-year rough"
 
@@ -302,10 +353,19 @@ p2 <- brd.filt.func %>%
 	ylab("Mean observations")+
 	xlab("Sampling period")+
 	facet_wrap(~Treatment,dir = 'v')
-###################### COMBINE FIGURE ########################################## 
+```
+
+## Combine the figures
+
+```{r combined figures, warning=FALSE,message=FALSE}
 library(lemon)
 grid_arrange_shared_legend(p1,p2)
-###################### ANIMATED FIGURE ########################################## 
+```
+
+## Animated figures
+
+Lets take a look at an animated version
+```{r animated figures, warning=FALSE,message=FALSE}
 library(data.table)
 library(sf)
 library(gganimate)
@@ -344,7 +404,5 @@ p3 <- brd.filt.func %>%
 	xlab("Sampling period")+
 	facet_wrap(~Treatment)
 
-p3_anim <- gganimate::animate(p3, duration = 10)
-gganimate::anim_save("p3_anim.gif", animation = p3_anim)
-
-
+gganimate::animate(p3, duration = 10)
+```
